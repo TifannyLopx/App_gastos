@@ -1,3 +1,9 @@
+/*import { supabase } from './src/lib/supabase'
+
+// prueba tiff db tocar solo si quieres morir :D
+supabase.from('usuarios').select('id').limit(1)
+  .then(({ error }) => console.log('error:', error))
+*/
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
