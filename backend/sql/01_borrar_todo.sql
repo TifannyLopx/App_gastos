@@ -1,0 +1,2 @@
+-- Usar con cautela pues borra absolutamente todos los datos y las tablas de la db
+-- drop table if exists "gastos", "tarjetas", "limites", "usuarios", "familias", "cierres" cascade;
