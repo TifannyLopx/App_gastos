@@ -23,7 +23,7 @@ create table familias (
 create table tarjetas (
   id bigint generated always as identity primary key,
   familia_id bigint not null references familias(id) on delete cascade,
-  usuario_id uuid not null references usuarios(id) on delete cascade,  -- dueño
+  titular_id uuid not null references titular(id) on delete cascade,  -- dueño
   nombre text not null,
   tipo_pago text not null check (tipo_pago in ('credito', 'debito')),
   dia_corte smallint check (dia_corte between 1 and 31),  -- día del mes, se repite cada mes
