@@ -37,3 +37,13 @@ export function escucharSesion(callback: (sesion: Session | null) => void) {
   const { data } = supabase.auth.onAuthStateChange((_evento, sesion) => callback(sesion))
   return () => data.subscription.unsubscribe()
 }
+
+// dice qué le falta a la contraseña (mismas reglas que pide supabase), o null si está bien
+export function validarContrasena(password: string): string | null {
+  const faltas: string[] = []
+  if (password.length < 8) faltas.push('mínimo 8 caracteres')
+  if (!/[A-Z]/.test(password)) faltas.push('una mayúscula')
+  if (!/[a-z]/.test(password)) faltas.push('una minúscula')
+  if (!/[0-9]/.test(password)) faltas.push('un número')
+  return faltas.length ? `La contraseña necesita: ${faltas.join(', ')}.` : null
+}
