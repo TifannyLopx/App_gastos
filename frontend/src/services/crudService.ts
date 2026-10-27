@@ -43,7 +43,7 @@ export function aplicarOpciones(query: any, opciones: OpcionesVer = {}) {
 }
 
 // crea el crud completo de la tabla que le pidamos
-export function crearCrud<T>(tabla: string) {
+export function crearCrud<T = any>(tabla: string) {
   return {
     // insert, regresa lo que se guardó
     async crear(datos: Partial<T>): Promise<T> {
@@ -81,4 +81,10 @@ export function crearCrud<T>(tabla: string) {
       if (!data?.length) throw new Error('No se encontró o no tienes permiso')
     },
   }
+}
+// llama una función de sql
+export async function llamarFuncion<T = any>(nombre: string, parametros?: object): Promise<T> {
+  const { data, error } = await supabase.rpc(nombre, parametros as any)
+  if (error) throw traducirError(error)
+  return data
 }
