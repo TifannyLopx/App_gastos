@@ -34,3 +34,12 @@ export function expulsarMiembro(miembroId: string) {
 export function regenerarCodigo() {
   return llamarFuncion<string>('regenerar_codigo')
 }
+
+// cualquiera de la familia puede cambiar los porcentajes del presupuesto (no suman más de 100)
+export function editarPorcentajes(obligatorio: number, necesario: number, chucheria: number) {
+  return llamarFuncion('editar_porcentajes', {
+    p_obligatorio: obligatorio,
+    p_necesario: necesario,
+    p_chucheria: chucheria,
+  })
+}
