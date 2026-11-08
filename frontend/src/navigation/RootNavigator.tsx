@@ -8,6 +8,7 @@ import { DatosProvider } from '../context/DatosContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { InicioScreen } from '../screens/InicioScreen';
 import { HistorialScreen } from '../screens/HistorialScreen';
+import { CuentasScreen } from '../screens/CuentasScreen';
 import { AhorroScreen } from '../screens/AhorroScreen';
 import { AjustesScreen } from '../screens/AjustesScreen';
 import { colores } from '../theme';
@@ -18,6 +19,7 @@ type NombreIcono = React.ComponentProps<typeof Ionicons>['name'];
 const ICONOS: Record<string, [NombreIcono, NombreIcono]> = {
   Inicio: ['home', 'home-outline'],
   Historial: ['receipt', 'receipt-outline'],
+  Cuentas: ['card', 'card-outline'],
   Ahorro: ['wallet', 'wallet-outline'],
   Ajustes: ['settings', 'settings-outline'],
 };
@@ -36,6 +38,7 @@ function Pestanas() {
     >
       <Tab.Screen name="Inicio" component={InicioScreen} />
       <Tab.Screen name="Historial" component={HistorialScreen} />
+      <Tab.Screen name="Cuentas" component={CuentasScreen} />
       <Tab.Screen name="Ahorro" component={AhorroScreen} />
       <Tab.Screen name="Ajustes" component={AjustesScreen} />
     </Tab.Navigator>

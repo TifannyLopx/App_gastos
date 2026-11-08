@@ -9,3 +9,9 @@ export function inicioDeMes(fecha: Date = new Date()): string {
 export function inicioDeMesSiguiente(fecha: Date = new Date()): string {
   return inicioDeMes(new Date(fecha.getFullYear(), fecha.getMonth() + 1, 1))
 }
+
+// la fecha completa 'AAAA-MM-DD' en hora del celular (no en UTC, para que no cambie de día de noche)
+export function fechaLocal(fecha: Date = new Date()): string {
+  const dia = String(fecha.getDate()).padStart(2, '0')
+  return `${inicioDeMes(fecha).slice(0, 8)}${dia}`
+}

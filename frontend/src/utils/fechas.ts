@@ -39,10 +39,26 @@ export function sumarDias(iso: string, n: number): string {
   return `${d.getUTCFullYear()}-${dos(d.getUTCMonth() + 1)}-${dos(d.getUTCDate())}`;
 }
 
+// días de a a b (b - a), con fechas 'YYYY-MM-DD'
+export function diasEntre(a: string, b: string): number {
+  const ms = (x: string) => Date.UTC(Number(x.slice(0, 4)), Number(x.slice(5, 7)) - 1, Number(x.slice(8, 10)));
+  return Math.round((ms(b) - ms(a)) / 86400000);
+}
+
 export function nombreMes(iso: string): string {
   return `${MESES[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
 }
 
 export function fechaCorta(iso: string): string {
   return `${Number(iso.slice(8, 10))} ${MESES_CORTOS[Number(iso.slice(5, 7)) - 1]}`;
+}
+
+export function fechaLarga(iso: string): string {
+  return `${Number(iso.slice(8, 10))} ${MESES_CORTOS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+export function esFechaValida(texto: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return false;
+  const d = new Date(Number(texto.slice(0, 4)), Number(texto.slice(5, 7)) - 1, Number(texto.slice(8, 10)));
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}` === texto;
 }

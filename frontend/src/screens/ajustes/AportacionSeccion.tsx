@@ -6,14 +6,14 @@ import { Campo } from '../../components/Campo';
 import { Boton } from '../../components/Boton';
 import { Mensaje } from '../../components/Mensaje';
 import { crearAportacion, editarAportacion } from '../../services/limitesService';
-import { CATEGORIAS, PORCENTAJE_LIBRE } from '../../utils/categorias';
+import { porcentajeLibre } from '../../utils/categorias';
 import { formatoMXN, leerMonto } from '../../utils/dinero';
 import { nombreMes } from '../../utils/fechas';
 import { colores } from '../../theme';
 
 // "Cambiar el límite de gastos": cuánto aporta cada quien al límite de este mes.
 export function AportacionSeccion() {
-  const { perfil, mes, miAportacion, refrescar } = useDatos();
+  const { perfil, mes, miAportacion, refrescar, categorias } = useDatos();
   const [texto, setTexto] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,15 +58,15 @@ export function AportacionSeccion() {
 
       {valor !== null && valor > 0 ? (
         <View style={estilos.reparto}>
-          {CATEGORIAS.map((c) => (
+          {categorias.map((c) => (
             <View key={c.id} style={estilos.fila}>
               <Text style={[estilos.texto, { color: c.color }]}>{c.nombre} {Math.round(c.porcentaje * 100)}%</Text>
               <Text style={estilos.texto}>{formatoMXN(valor * c.porcentaje)}</Text>
             </View>
           ))}
           <View style={estilos.fila}>
-            <Text style={estilos.suave}>Libre / ahorro {Math.round(PORCENTAJE_LIBRE * 100)}%</Text>
-            <Text style={estilos.suave}>{formatoMXN(valor * PORCENTAJE_LIBRE)}</Text>
+            <Text style={estilos.suave}>Libre / ahorro {Math.round(porcentajeLibre(categorias) * 100)}%</Text>
+            <Text style={estilos.suave}>{formatoMXN(valor * porcentajeLibre(categorias))}</Text>
           </View>
         </View>
       ) : null}

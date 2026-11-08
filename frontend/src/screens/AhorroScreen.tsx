@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Pantalla } from './Pantalla';
 import { useDatos } from '../context/DatosContext';
 import { Caja } from '../components/Tarjeta';
@@ -7,162 +7,145 @@ import { Campo } from '../components/Campo';
 import { Boton } from '../components/Boton';
 import { BarraProgreso } from '../components/BarraProgreso';
 import { Mensaje } from '../components/Mensaje';
-import { cerrarMes, editarCierre } from '../services/cierresService';
-import { cargarMetas, guardarMetas } from '../services/metas';
+import { EditarMetaModal, MoverMetaModal, RepartoMes } from '../components/AhorroPartes';
+import { crearMeta } from '../services/metasService';
+import { borrarMetasLocales, cargarMetas } from '../services/metas';
 import { formatoMXN, leerMonto } from '../utils/dinero';
-import { aFecha, nombreMes, sumarMeses } from '../utils/fechas';
+import { nombreMes } from '../utils/fechas';
 import { colores } from '../theme';
-import type { DestinoCierre, Meta } from '../types';
+import type { Meta, MetaLocal, TipoReparto } from '../types';
 
-const NOMBRE_DESTINO: Record<DestinoCierre, string> = {
-  siguiente_mes: 'Pasó al mes siguiente',
-  ahorro: 'Se fue a ahorro',
+const NOMBRE_TIPO: Record<TipoReparto, string> = {
+  siguiente_mes: 'al mes siguiente',
+  ahorro: 'a ahorro libre',
+  meta: 'a una meta',
 };
 
-// Ahorro acumulado, cierre del mes pasado (sobrante) y metas de ahorro.
+// Ahorro: ahorro libre, reparto del sobrante, metas (editables, con entradas y salidas) y cierres.
 export function AhorroScreen() {
-  const { ahorro, cierres, perfil, familia, mes, refrescar, nombreDe } = useDatos();
-  const [metas, setMetas] = useState<Meta[]>([]);
-  const [nombreMeta, setNombreMeta] = useState('');
-  const [objetivoMeta, setObjetivoMeta] = useState('');
+  const { ahorro, cierres, repartos, metas, familia, metas: lista, nombreDe, refrescar } = useDatos();
+  const [nombre, setNombre] = useState('');
+  const [objetivo, setObjetivo] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [trabajando, setTrabajando] = useState(false);
+  const [mover, setMover] = useState<{ meta: Meta | null; modo: 'meter' | 'sacar' }>({ meta: null, modo: 'meter' });
+  const [editar, setEditar] = useState<Meta | null>(null);
+  const [locales, setLocales] = useState<MetaLocal[]>([]);
 
+  // metas que antes se guardaban solo en este teléfono
   useEffect(() => {
-    if (familia) cargarMetas(familia.id).then(setMetas);
+    if (familia) cargarMetas(familia.id).then(setLocales);
   }, [familia]);
 
-  const mesPasado = sumarMeses(mes, -1);
-  const miCierre = cierres.find((c) => c.usuario_id === perfil?.id && c.mes === mesPasado);
-  const totalAhorro = ahorro.reduce((s, a) => s + a.ahorro, 0);
+  const totalLibre = ahorro.reduce((s, a) => s + a.ahorro, 0);
+  const totalMetas = lista.reduce((s, m) => s + m.ahorrado, 0);
 
-  const mandar = async (destino: DestinoCierre) => {
+  const agregar = async () => {
+    const v = leerMonto(objetivo);
+    if (!nombre.trim() || v === null || v <= 0) return setError('Escribe el nombre y un objetivo mayor a 0.');
     setError(null);
-    setTrabajando(true);
     try {
-      if (miCierre) await editarCierre(aFecha(mesPasado), destino);
-      else await cerrarMes(destino, aFecha(mesPasado));
+      await crearMeta({ nombre: nombre.trim(), objetivo: v });
+      setNombre(''); setObjetivo('');
       await refrescar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar.');
-    } finally {
-      setTrabajando(false);
+      setError(e instanceof Error ? e.message : 'No se pudo crear la meta.');
     }
   };
 
-  const agregarMeta = async () => {
-    const objetivo = leerMonto(objetivoMeta);
+  const importarLocales = async () => {
     if (!familia) return;
-    if (!nombreMeta.trim() || objetivo === null || objetivo <= 0) return setError('Escribe el nombre y un objetivo mayor a 0.');
-    setError(null);
-    const nuevas = [...metas, { id: String(Date.now()), nombre: nombreMeta.trim(), objetivo }];
-    setMetas(nuevas);
-    await guardarMetas(familia.id, nuevas);
-    setNombreMeta('');
-    setObjetivoMeta('');
+    try {
+      for (const m of locales) await crearMeta({ nombre: m.nombre, objetivo: m.objetivo });
+      await borrarMetasLocales(familia.id);
+      setLocales([]);
+      await refrescar();
+      Alert.alert('Listo', 'Tus metas ya están en la nube y las ve tu pareja.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron pasar las metas.');
+    }
   };
-
-  const borrarMeta = (id: string) =>
-    Alert.alert('Borrar meta', '¿Quitar esta meta de la lista?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Borrar',
-        style: 'destructive',
-        onPress: async () => {
-          if (!familia) return;
-          const nuevas = metas.filter((m) => m.id !== id);
-          setMetas(nuevas);
-          await guardarMetas(familia.id, nuevas);
-        },
-      },
-    ]);
-
-  // El ahorro se reparte en orden: llena la primera meta, luego la siguiente...
-  let restante = totalAhorro;
-  const metasConAvance = metas.map((m) => {
-    const aplicado = Math.min(restante, m.objetivo);
-    restante -= aplicado;
-    return { ...m, aplicado };
-  });
 
   return (
     <Pantalla titulo="Ahorro y metas">
       <Mensaje texto={error} />
 
-      <Caja titulo="Ahorro acumulado">
-        <Text style={estilos.grande}>{formatoMXN(totalAhorro)}</Text>
+      <Caja titulo="Ahorro">
+        <Text style={estilos.grande}>{formatoMXN(totalLibre + totalMetas)}</Text>
+        <Text style={estilos.suave}>En total entre ahorro libre y metas</Text>
+        <View style={estilos.fila}><Text style={estilos.texto}>Ahorro libre (sin meta)</Text><Text style={estilos.texto}>{formatoMXN(totalLibre)}</Text></View>
         {ahorro.map((a) => (
           <View key={a.usuario_id} style={estilos.fila}>
-            <Text style={estilos.texto}>{a.nombre}</Text>
-            <Text style={estilos.texto}>{formatoMXN(a.ahorro)}</Text>
+            <Text style={estilos.suave}>   {a.nombre}</Text>
+            <Text style={estilos.suave}>{formatoMXN(a.ahorro)}</Text>
           </View>
         ))}
+        <View style={estilos.fila}><Text style={estilos.texto}>En metas</Text><Text style={estilos.texto}>{formatoMXN(totalMetas)}</Text></View>
       </Caja>
 
-      <Caja titulo={`Sobrante de ${nombreMes(mesPasado)}`}>
-        {miCierre ? (
-          <>
-            <Text style={estilos.grande}>{formatoMXN(miCierre.sobrante)}</Text>
-            <Text style={estilos.suave}>
-              Límite {formatoMXN(miCierre.limite)} · gastado {formatoMXN(miCierre.gastado)}
-            </Text>
-            <Text style={[estilos.texto, { marginVertical: 8 }]}>{NOMBRE_DESTINO[miCierre.destino]}</Text>
-            <Text style={estilos.suave}>Puedes cambiar a dónde va este mes pasado:</Text>
-          </>
-        ) : (
-          <Text style={[estilos.suave, { marginBottom: 8 }]}>
-            Aún no cierras el mes pasado. Si te sobró dinero, elige a dónde va (si te pasaste, se descuenta del mes siguiente).
+      <RepartoMes />
+
+      {locales.length > 0 ? (
+        <Caja titulo="Metas guardadas en este teléfono">
+          <Text style={[estilos.suave, { marginBottom: 10 }]}>
+            Antes las metas se guardaban solo aquí ({locales.map((m) => m.nombre).join(', ')}). Pásalas a la nube para editarlas y que tu pareja también las vea.
           </Text>
-        )}
-        <View style={estilos.botones}>
-          <View style={{ flex: 1 }}>
-            <Boton chico variante={miCierre?.destino === 'siguiente_mes' ? 'primario' : 'secundario'} titulo="Al mes siguiente" onPress={() => mandar('siguiente_mes')} deshabilitado={trabajando} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Boton chico variante={miCierre?.destino === 'ahorro' ? 'primario' : 'secundario'} titulo="A ahorro" onPress={() => mandar('ahorro')} deshabilitado={trabajando} />
-          </View>
-        </View>
-      </Caja>
+          <Boton variante="secundario" titulo="Pasarlas a la nube" onPress={importarLocales} />
+        </Caja>
+      ) : null}
 
       <Caja titulo="Metas de ahorro">
-        {metasConAvance.length === 0 ? <Text style={estilos.suave}>Aún no tienes metas. Crea la primera abajo.</Text> : null}
-        {metasConAvance.map((m) => (
-          <Pressable key={m.id} onLongPress={() => borrarMeta(m.id)} style={{ marginBottom: 14 }}>
+        {metas.length === 0 ? <Text style={estilos.suave}>Aún no hay metas. Crea la primera abajo.</Text> : null}
+        {metas.map((m) => (
+          <View key={m.id} style={{ marginBottom: 16 }}>
             <View style={estilos.fila}>
               <Text style={estilos.nombre}>{m.nombre}</Text>
-              <Text style={estilos.texto}>{formatoMXN(m.aplicado)} / {formatoMXN(m.objetivo)}</Text>
+              <Text style={estilos.texto}>{formatoMXN(m.ahorrado)} / {formatoMXN(m.objetivo)}</Text>
             </View>
-            <BarraProgreso proporcion={m.aplicado / m.objetivo} color={colores.ok} />
-          </Pressable>
+            <BarraProgreso proporcion={m.ahorrado / m.objetivo} color={colores.ok} />
+            <View style={estilos.botones}>
+              <Boton chico titulo="Agregar" onPress={() => setMover({ meta: m, modo: 'meter' })} />
+              <Boton chico variante="secundario" titulo="Sacar" onPress={() => setMover({ meta: m, modo: 'sacar' })} />
+              <Boton chico variante="texto" titulo="Editar" onPress={() => setEditar(m)} />
+            </View>
+          </View>
         ))}
-        {metasConAvance.length > 0 ? <Text style={[estilos.suave, { marginBottom: 12 }]}>El ahorro llena las metas en orden. Mantén presionada una meta para borrarla.</Text> : null}
-        <Campo etiqueta="Nueva meta" placeholder="Viaje, fondo de emergencia..." value={nombreMeta} onChangeText={setNombreMeta} />
-        <Campo etiqueta="Objetivo" placeholder="0.00" keyboardType="decimal-pad" value={objetivoMeta} onChangeText={setObjetivoMeta} />
-        <Boton variante="secundario" titulo="Agregar meta" onPress={agregarMeta} />
-        <Text style={[estilos.suave, { marginTop: 8 }]}>Las metas se guardan en este teléfono.</Text>
+        <View style={estilos.nueva}>
+          <Campo etiqueta="Nueva meta" placeholder="Viaje, fondo de emergencia..." value={nombre} onChangeText={setNombre} />
+          <Campo etiqueta="Objetivo" placeholder="0.00" keyboardType="decimal-pad" value={objetivo} onChangeText={setObjetivo} />
+          <Boton variante="secundario" titulo="Crear meta" onPress={agregar} />
+        </View>
       </Caja>
 
       <Caja titulo="Cierres anteriores">
         {cierres.length === 0 ? <Text style={estilos.suave}>Todavía no hay meses cerrados.</Text> : null}
-        {cierres.slice(0, 12).map((c) => (
-          <View key={c.id} style={estilos.fila}>
-            <View style={{ flex: 1 }}>
-              <Text style={[estilos.texto, { textTransform: 'capitalize' }]}>{nombreMes(c.mes)} · {nombreDe(c.usuario_id)}</Text>
-              <Text style={estilos.suave}>{NOMBRE_DESTINO[c.destino]}</Text>
+        {cierres.slice(0, 12).map((c) => {
+          const partes = repartos.filter((r) => r.cierre_id === c.id);
+          return (
+            <View key={c.id} style={estilos.fila}>
+              <View style={{ flex: 1 }}>
+                <Text style={[estilos.texto, { textTransform: 'capitalize' }]}>{nombreMes(c.mes)} · {nombreDe(c.usuario_id)}</Text>
+                <Text style={estilos.suave}>
+                  {partes.length === 0 ? 'Sin sobrante' : partes.map((p) => `${formatoMXN(p.monto)} ${NOMBRE_TIPO[p.tipo]}`).join(' · ')}
+                </Text>
+              </View>
+              <Text style={estilos.texto}>{formatoMXN(c.sobrante)}</Text>
             </View>
-            <Text style={estilos.texto}>{formatoMXN(c.sobrante)}</Text>
-          </View>
-        ))}
+          );
+        })}
       </Caja>
+
+      <MoverMetaModal meta={mover.meta} modo={mover.modo} onCerrar={() => setMover({ meta: null, modo: mover.modo })} />
+      <EditarMetaModal meta={editar} onCerrar={() => setEditar(null)} />
     </Pantalla>
   );
 }
 
 const estilos = StyleSheet.create({
-  grande: { fontSize: 30, fontWeight: '800', color: colores.texto, marginBottom: 6 },
-  fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
+  grande: { fontSize: 30, fontWeight: '800', color: colores.texto },
+  fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5 },
   texto: { fontSize: 14, color: colores.texto },
-  nombre: { fontSize: 15, fontWeight: '600', color: colores.texto },
+  nombre: { fontSize: 15, fontWeight: '700', color: colores.texto },
   suave: { fontSize: 12, color: colores.suave },
-  botones: { flexDirection: 'row', gap: 10 },
+  botones: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  nueva: { marginTop: 8, paddingTop: 14, borderTopWidth: 1, borderTopColor: colores.borde },
 });

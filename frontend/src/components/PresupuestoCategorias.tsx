@@ -3,14 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDatos } from '../context/DatosContext';
 import { Caja } from './Tarjeta';
 import { BarraProgreso } from './BarraProgreso';
-import { CATEGORIAS, PORCENTAJE_LIBRE, categoriaDeGasto } from '../utils/categorias';
+import { categoriaDeGasto, porcentajeLibre } from '../utils/categorias';
 import { montoEnMes } from '../utils/cargos';
 import { colores } from '../theme';
 import { formatoMXN, redondear } from '../utils/dinero';
 
-// "¿A dónde va el dinero?": cuánto se lleva cada categoría contra su tope (35 / 20 / 15 %).
+// "¿A dónde va el dinero?": cuánto se lleva cada categoría contra su tope (los % se editan en Ajustes).
 export function PresupuestoCategorias() {
-  const { gastos, resumen, mes } = useDatos();
+  const { gastos, resumen, mes, categorias } = useDatos();
 
   const { porCategoria, sinCategoria, limiteTotal } = useMemo(() => {
     const acumulado: Record<string, number> = {};
@@ -31,7 +31,7 @@ export function PresupuestoCategorias() {
 
   return (
     <Caja titulo="¿A dónde va el dinero?">
-      {CATEGORIAS.map((c) => {
+      {categorias.map((c) => {
         const gastado = redondear(porCategoria[c.id] ?? 0);
         const tope = limiteTotal * c.porcentaje;
         return (
@@ -50,7 +50,7 @@ export function PresupuestoCategorias() {
         );
       })}
       <Text style={estilos.suave}>
-        El {Math.round(PORCENTAJE_LIBRE * 100)}% restante queda libre para ahorro.
+        El {Math.round(porcentajeLibre(categorias) * 100)}% restante queda libre para ahorro.
         {sinCategoria > 0 ? `  Sin categoría: ${formatoMXN(sinCategoria)}.` : ''}
       </Text>
     </Caja>

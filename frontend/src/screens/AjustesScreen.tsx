@@ -4,16 +4,21 @@ import { Pantalla } from './Pantalla';
 import { Boton } from '../components/Boton';
 import { Caja } from '../components/Tarjeta';
 import { AportacionSeccion } from './ajustes/AportacionSeccion';
+import { PorcentajesSeccion } from './ajustes/PorcentajesSeccion';
 import { PerfilSeccion } from './ajustes/PerfilSeccion';
-import { TarjetasSeccion } from './ajustes/TarjetasSeccion';
+import { RecurrentesSeccion } from './ajustes/RecurrentesSeccion';
+import { AvisosSeccion } from './ajustes/AvisosSeccion';
+import { RespaldoSeccion } from './ajustes/RespaldoSeccion';
 import { FamiliaSeccion } from './ajustes/FamiliaSeccion';
 import { cerrarSesion } from '../services/authService';
 import { borrarCuenta } from '../services/usuariosService';
+import { quitarPush } from '../services/notificacionesService';
 
-// El "menú": límite del mes, perfil, tarjetas, familia y cerrar sesión.
+// El "menú": límite del mes, porcentajes, perfil, gastos automáticos, avisos, respaldo, familia y sesión.
 export function AjustesScreen() {
   const salir = async () => {
     try {
+      await quitarPush(); // este teléfono deja de recibir avisos de esta cuenta
       await cerrarSesion();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo cerrar la sesión.');
@@ -28,6 +33,7 @@ export function AjustesScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
+            await quitarPush();
             await borrarCuenta(); // también cierra la sesión
           } catch (e) {
             Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo borrar la cuenta.');
@@ -39,8 +45,11 @@ export function AjustesScreen() {
   return (
     <Pantalla titulo="Ajustes">
       <AportacionSeccion />
+      <PorcentajesSeccion />
+      <RecurrentesSeccion />
+      <AvisosSeccion />
+      <RespaldoSeccion />
       <PerfilSeccion />
-      <TarjetasSeccion />
       <FamiliaSeccion />
       <Caja>
         <Boton variante="secundario" titulo="Cerrar sesión" onPress={salir} />
