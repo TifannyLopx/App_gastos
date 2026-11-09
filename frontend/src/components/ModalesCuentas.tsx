@@ -164,7 +164,7 @@ export function PagarModal({ tarjeta, onCerrar }: { tarjeta: Tarjeta | null; onC
 }
 
 // ---------- crear o editar una tarjeta ----------
-export function TarjetaModal({ visible, tarjeta, onCerrar }: { visible: boolean; tarjeta: Tarjeta | null; onCerrar: () => void }) {
+export function TarjetaModal({ visible, tarjeta, tipoInicial, onCerrar }: { visible: boolean; tarjeta: Tarjeta | null; tipoInicial?: TipoCuenta; onCerrar: () => void }) {
   const { tarjetas, perfil } = useDatos();
   const editando = !!tarjeta;
   const [nombre, setNombre] = useState('');
@@ -183,7 +183,7 @@ export function TarjetaModal({ visible, tarjeta, onCerrar }: { visible: boolean;
     if (!visible) return;
     setError(null);
     setNombre(tarjeta?.nombre ?? '');
-    setTipo(tarjeta?.tipo_pago ?? 'credito');
+    setTipo(tarjeta?.tipo_pago ?? tipoInicial ?? 'credito');
     setSaldo(tarjeta ? String(tarjeta.saldo) : '');
     setLimite(tarjeta?.limite_credito != null ? String(tarjeta.limite_credito) : '');
     setCorte(tarjeta?.dia_corte ? String(tarjeta.dia_corte) : '');
