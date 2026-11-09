@@ -1,12 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type {
-  AhorroPersona, Cierre, EstadoCuenta, Familia, Gasto, Meta, Reparto, ResumenPersona, Tarjeta, Usuario,
-} from '../types';
+
 import { useAuth } from './AuthContext';
 import { verPerfil } from '../services/usuariosService';
 import { verFamilia, verMiembros } from '../services/familiasService';
 import { verTodosLosGastos } from '../services/gastosService';
-import { verEstadoTarjetas, verTarjetas } from '../services/tarjetasService';
+import { verEstadoTarjetas, verMsi, verTarjetas } from '../services/tarjetasService';
+import { verDeudas } from '../services/deudasService';
 import { verAportaciones, verResumen } from '../services/limitesService';
 import { verAhorro, verCierres, verRepartos } from '../services/cierresService';
 import { verMetas } from '../services/metasService';
@@ -18,6 +17,9 @@ import {
 import { aFecha, hoyISO, inicioMes, sumarMeses } from '../utils/fechas';
 import { Categoria, categoriasDe } from '../utils/categorias';
 import { unirGastos } from '../utils/cargos';
+import type {
+  AhorroPersona, Cierre, Deuda, EstadoCuenta, Familia, Gasto, Meta, MsiActivo, Reparto, ResumenPersona, Tarjeta, Usuario,
+} from '../types';
 
 // Aquí vive todo lo que las pantallas necesitan ver. Se carga una vez y se vuelve a
 // cargar con refrescar() después de cualquier cambio (registrar gasto, pagar tarjeta...).
@@ -46,6 +48,8 @@ interface DatosValor {
   repartos: Reparto[];
   ahorro: AhorroPersona[];
   metas: Meta[];
+  msi: MsiActivo[]; // msi activos de las tarjetas, de la app y anteriores
+  deudas: Deuda[]; // pagos a plazos directos, como la moto eda
   miAportacion: MiAportacion | null; // mi aportación de este mes (null = aún no la pone)
   estadoPush: EstadoPush | 'pendiente';
   cargando: boolean;
@@ -79,6 +83,8 @@ export function DatosProvider({ children }: { children: React.ReactNode }) {
   const [repartos, setRepartos] = useState<Reparto[]>([]);
   const [ahorro, setAhorro] = useState<AhorroPersona[]>([]);
   const [metas, setMetas] = useState<Meta[]>([]);
+  const [msi, setMsi] = useState<MsiActivo[]>([]);
+  const [deudas, setDeudas] = useState<Deuda[]>([]);
   const [miAportacion, setMiAportacion] = useState<MiAportacion | null>(null);
   const [estadoPush, setEstadoPush] = useState<EstadoPush | 'pendiente'>('pendiente');
   const [cargando, setCargando] = useState(true);
@@ -91,7 +97,7 @@ export function DatosProvider({ children }: { children: React.ReactNode }) {
       // primero se crean los gastos automáticos que ya tocan, para que salgan en todo lo demás
       await generarMisRecurrentes().catch(() => undefined);
 
-      const [p, f, m, t, e, g, r, rp, c, rep, a, me, ap, arch] = await Promise.all([
+            const [p, f, m, t, e, g, r, rp, c, rep, a, me, ap, arch, ms, de] = await Promise.all([
         verPerfil(),
         verFamilia(),
         verMiembros({ orden: { campo: 'creada_el' } }),
@@ -111,6 +117,8 @@ export function DatosProvider({ children }: { children: React.ReactNode }) {
           ],
         }),
         leerArchivo().catch(() => [] as Gasto[]),
+        verMsi(),
+        verDeudas({ orden: { campo: 'id' } }),
       ]);
 
       const numerosResumen = (x: ResumenPersona): ResumenPersona => ({
@@ -164,6 +172,10 @@ export function DatosProvider({ children }: { children: React.ReactNode }) {
       setAhorro((a as AhorroPersona[]).map((x) => ({ ...x, ahorro: num(x.ahorro) })));
       setMetas((me as Meta[]).map((x) => ({ ...x, objetivo: num(x.objetivo), ahorrado: num(x.ahorrado) })));
       const propia = (ap as { id: number; aportacion: unknown }[])[0];
+      setMsi((ms as MsiActivo[]).map((x) => ({ ...x, mensualidad: num(x.mensualidad), pendiente: num(x.pendiente) })));
+      setDeudas(
+        (de as Deuda[]).map((x) => ({ ...x, falta: num(x.falta), total: numONull(x.total), abono: numONull(x.abono) })),
+      );
       setMiAportacion(propia ? { id: propia.id, aportacion: num(propia.aportacion) } : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cargar los datos');
@@ -204,12 +216,12 @@ export function DatosProvider({ children }: { children: React.ReactNode }) {
   const valor = useMemo(
     () => ({
       mes, mesPasado, perfil, familia, categorias, miembros, tarjetas, estado, gastosNube, gastos, archivoLocal,
-      resumen, resumenPasado, cierres, repartos, ahorro, metas, miAportacion, estadoPush, cargando, error,
+      resumen, resumenPasado, cierres, repartos, ahorro, metas, msi, deudas, miAportacion, estadoPush, cargando, error,
       refrescar, nombreDe, miEfectivo,
     }),
     [
       mes, mesPasado, perfil, familia, categorias, miembros, tarjetas, estado, gastosNube, gastos, archivoLocal,
-      resumen, resumenPasado, cierres, repartos, ahorro, metas, miAportacion, estadoPush, cargando, error,
+      resumen, resumenPasado, cierres, repartos, ahorro, metas, msi, deudas, miAportacion, estadoPush, cargando, error,
       refrescar, nombreDe, miEfectivo,
     ],
   );
