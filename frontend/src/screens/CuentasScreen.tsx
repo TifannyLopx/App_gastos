@@ -6,6 +6,7 @@ import { Caja } from '../components/Tarjeta';
 import { Boton } from '../components/Boton';
 import { BarraProgreso } from '../components/BarraProgreso';
 import { PagarModal, SaldoModal, TarjetaModal, TransferirModal } from '../components/ModalesCuentas';
+import { PagosPlazos } from '../components/PagosPlazos';
 import { formatoMXN } from '../utils/dinero';
 import { diasEntre, fechaCorta, hoyISO } from '../utils/fechas';
 import { colores } from '../theme';
@@ -13,7 +14,7 @@ import type { Tarjeta, TipoCuenta } from '../types';
 
 // Cuentas: cuánto dinero hay (libre y asignado), tarjetas de débito/efectivo y tarjetas de crédito.
 export function CuentasScreen() {
-  const { tarjetas, estado, perfil, nombreDe, miembros } = useDatos();
+  const { tarjetas, estado, perfil, nombreDe, miembros, deudas } = useDatos();
   const [saldo, setSaldo] = useState<Tarjeta | null>(null);
   const [pagar, setPagar] = useState<Tarjeta | null>(null);
   const [tarjetaForm, setTarjetaForm] = useState<{ visible: boolean; tarjeta: Tarjeta | null; tipo?: TipoCuenta }>({ visible: false, tarjeta: null });
@@ -27,6 +28,7 @@ export function CuentasScreen() {
   const asignado = cuentas.reduce((s, c) => s + (est(c.id)?.apartado_en_cuenta ?? 0), 0);
   const libre = total - asignado;
   const deudaTotal = creditos.reduce((s, c) => s + (est(c.id)?.usado ?? 0), 0);
+  const deudaPlazos = deudas.reduce((s, d) => s + Math.max(d.falta, 0), 0);   // deudas directas, como la moto
   const hoy = hoyISO();
 
   return (
@@ -56,7 +58,11 @@ export function CuentasScreen() {
             ))}
           </View>
         ) : null}
-        {deudaTotal > 0 ? <Text style={[estilos.suave, { marginTop: 8 }]}>Deuda total en tarjetas de crédito: {formatoMXN(deudaTotal)}</Text> : null}
+        {deudaTotal + deudaPlazos > 0 ? (
+          <Text style={[estilos.suave, { marginTop: 8 }]}>
+            Deuda total {formatoMXN(deudaTotal + deudaPlazos)} · tarjetas {formatoMXN(deudaTotal)} · directo {formatoMXN(deudaPlazos)}
+          </Text>
+        ) : null}
       </Caja>
 
       <Caja titulo="Débito y efectivo">
@@ -163,7 +169,7 @@ export function CuentasScreen() {
           );
         })}
       </Caja>
-
+      <PagosPlazos />
       <SaldoModal cuenta={saldo} onCerrar={() => setSaldo(null)} />
       <PagarModal tarjeta={pagar} onCerrar={() => setPagar(null)} />
       <TarjetaModal visible={tarjetaForm.visible} tarjeta={tarjetaForm.tarjeta} tipoInicial={tarjetaForm.tipo} onCerrar={() => setTarjetaForm({ visible: false, tarjeta: null })} />
