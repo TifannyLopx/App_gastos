@@ -375,7 +375,7 @@ create policy "borrar mi deuda" on deudas for delete to authenticated
   using (usuario_id = auth.uid());
 
 -- un abono es un gasto con deuda_id, así cuenta en el límite y baja el saldo de su cuenta
-alter table gastos add column if not exists deuda_id bigint references deudas(id) on delete set null;
+alter table gastos_recurrentes add column if not exists deuda_id bigint references deudas(id) on delete cascade;   
 alter table gastos_recurrentes add column if not exists deuda_id bigint references deudas(id) on delete set null;
 
 -- cada abono baja lo que falta, y si lo editan o borran se acomoda
