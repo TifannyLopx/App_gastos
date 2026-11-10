@@ -72,6 +72,7 @@ export interface NuevoGasto {
   motivo: string;
   fecha_compra: string;
   msi: number | null;
+  deuda_id?: number | null;
 }
 
 // Una fila de ver_resumen (una por persona).
@@ -193,4 +194,27 @@ export interface MetaLocal {
   id: string;
   nombre: string;
   objetivo: number;
+}
+
+// msi activo, de la app o anterior a la app
+export interface MsiActivo {
+  origen: 'app' | 'anterior';
+  id: number;
+  tarjeta_id: number;
+  motivo: string;
+  mensualidad: number;
+  de_meses: number | null;
+  quedan: number;
+  pendiente: number;
+  termina: string;
+}
+
+export interface Deuda {
+  id: number;
+  usuario_id: string;
+  nombre: string;
+  falta: number;
+  total: number | null;
+  abono: number | null;
+  cada_dias: number | null;
 }

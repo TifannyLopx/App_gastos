@@ -1,6 +1,8 @@
 import { crearCrud, llamarFuncion } from './crudService'
 import { fechaLocal } from './fechas'
 import type { EstadoCuenta, NuevaTarjeta, Tarjeta } from '../types'
+import { supabase } from '../lib/supabase'
+import { traducirError } from './errores'
 
 // "tarjetas" son las cuentas: crédito, débito y efectivo
 const tarjetas = crearCrud<Tarjeta | NuevaTarjeta>('tarjetas')
@@ -34,3 +36,17 @@ export function pagarTarjeta(tarjetaId: number, opciones: { monto?: number; cuen
 
 export const deshacerPago = (pagoId: number) => llamarFuncion('deshacer_pago', { p_pago: pagoId })
 export const verPagos = pagos.ver
+
+// msi de antes de usar la app
+const msiPrevios = crearCrud('msi_previos')
+
+export const crearMsiAnterior = msiPrevios.crear
+export const editarMsiAnterior = msiPrevios.editar
+export const borrarMsiAnterior = msiPrevios.borrar
+
+// msi activos de todas las tarjetas, los de la app y los anteriores
+export async function verMsi() {
+  const { data, error } = await supabase.rpc('ver_msi')
+  if (error) throw traducirError(error)
+  return data
+}

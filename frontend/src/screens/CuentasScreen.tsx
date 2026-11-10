@@ -6,19 +6,20 @@ import { Caja } from '../components/Tarjeta';
 import { Boton } from '../components/Boton';
 import { BarraProgreso } from '../components/BarraProgreso';
 import { PagarModal, SaldoModal, TarjetaModal, TransferirModal } from '../components/ModalesCuentas';
+import { PagosPlazos } from '../components/PagosPlazos';
 import { formatoMXN } from '../utils/dinero';
 import { diasEntre, fechaCorta, hoyISO } from '../utils/fechas';
 import { colores } from '../theme';
-import type { Tarjeta } from '../types';
+import type { Tarjeta, TipoCuenta } from '../types';
 
 // Cuentas: cuánto dinero hay (libre y asignado), tarjetas de débito/efectivo y tarjetas de crédito.
 export function CuentasScreen() {
-  const { tarjetas, estado, perfil, nombreDe, miembros } = useDatos();
+  const { tarjetas, estado, perfil, nombreDe, miembros, deudas } = useDatos();
   const [saldo, setSaldo] = useState<Tarjeta | null>(null);
   const [pagar, setPagar] = useState<Tarjeta | null>(null);
-  const [tarjetaForm, setTarjetaForm] = useState<{ visible: boolean; tarjeta: Tarjeta | null }>({ visible: false, tarjeta: null });
+  const [tarjetaForm, setTarjetaForm] = useState<{ visible: boolean; tarjeta: Tarjeta | null; tipo?: TipoCuenta }>({ visible: false, tarjeta: null });
   const [transf, setTransf] = useState<{ visible: boolean; desde: number | null }>({ visible: false, desde: null });
-
+  const nueva = (tipo: TipoCuenta) => setTarjetaForm({ visible: true, tarjeta: null, tipo });
   const cuentas = tarjetas.filter((t) => t.tipo_pago !== 'credito');
   const creditos = tarjetas.filter((t) => t.tipo_pago === 'credito');
   const est = (id: number) => estado.find((e) => e.tarjeta_id === id);
@@ -27,6 +28,7 @@ export function CuentasScreen() {
   const asignado = cuentas.reduce((s, c) => s + (est(c.id)?.apartado_en_cuenta ?? 0), 0);
   const libre = total - asignado;
   const deudaTotal = creditos.reduce((s, c) => s + (est(c.id)?.usado ?? 0), 0);
+  const deudaPlazos = deudas.reduce((s, d) => s + Math.max(d.falta, 0), 0);   // deudas directas, como la moto
   const hoy = hoyISO();
 
   return (
@@ -56,10 +58,17 @@ export function CuentasScreen() {
             ))}
           </View>
         ) : null}
-        {deudaTotal > 0 ? <Text style={[estilos.suave, { marginTop: 8 }]}>Deuda total en tarjetas de crédito: {formatoMXN(deudaTotal)}</Text> : null}
+        {deudaTotal + deudaPlazos > 0 ? (
+          <Text style={[estilos.suave, { marginTop: 8 }]}>
+            Deuda total {formatoMXN(deudaTotal + deudaPlazos)} · tarjetas {formatoMXN(deudaTotal)} · directo {formatoMXN(deudaPlazos)}
+          </Text>
+        ) : null}
       </Caja>
 
       <Caja titulo="Débito y efectivo">
+        <View style={estilos.agregar}>
+          <Boton chico variante="texto" titulo="+ Agregar débito" onPress={() => nueva('debito')} />
+        </View>
         {cuentas.map((c, i) => {
           const e = est(c.id);
           const mia = c.titular_id === perfil?.id;
@@ -94,6 +103,9 @@ export function CuentasScreen() {
       </Caja>
 
       <Caja titulo="Tarjetas de crédito">
+        <View style={estilos.agregar}>
+          <Boton chico variante="texto" titulo="+ Agregar crédito" onPress={() => nueva('credito')} />
+        </View>
         {creditos.length === 0 ? <Text style={estilos.suave}>Aún no hay tarjetas de crédito.</Text> : null}
         {creditos.map((c, i) => {
           const e = est(c.id);
@@ -157,12 +169,10 @@ export function CuentasScreen() {
           );
         })}
       </Caja>
-
-      <Boton variante="secundario" titulo="Agregar tarjeta" onPress={() => setTarjetaForm({ visible: true, tarjeta: null })} />
-
+      <PagosPlazos />
       <SaldoModal cuenta={saldo} onCerrar={() => setSaldo(null)} />
       <PagarModal tarjeta={pagar} onCerrar={() => setPagar(null)} />
-      <TarjetaModal visible={tarjetaForm.visible} tarjeta={tarjetaForm.tarjeta} onCerrar={() => setTarjetaForm({ visible: false, tarjeta: null })} />
+      <TarjetaModal visible={tarjetaForm.visible} tarjeta={tarjetaForm.tarjeta} tipoInicial={tarjetaForm.tipo} onCerrar={() => setTarjetaForm({ visible: false, tarjeta: null })} />
       <TransferirModal visible={transf.visible} desdeId={transf.desde} onCerrar={() => setTransf({ visible: false, desde: null })} />
     </Pantalla>
   );
@@ -183,4 +193,5 @@ const estilos = StyleSheet.create({
   monto: { fontSize: 18, fontWeight: '800', color: colores.texto },
   botones: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   caja: { backgroundColor: colores.fondo, borderRadius: 12, padding: 10, marginTop: 10 },
+  agregar: { alignItems: 'flex-end', marginBottom: 4 },
 });

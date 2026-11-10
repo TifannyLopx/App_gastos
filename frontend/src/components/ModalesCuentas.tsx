@@ -15,7 +15,7 @@ import { colores } from '../theme';
 import type { Tarjeta, TipoCuenta } from '../types';
 
 // Todas las ventanas emergentes de la pestaña Cuentas. Cada una guarda y luego recarga los datos.
-function useAccion(onListo: () => void) {
+export function useAccion(onListo: () => void) {
   const { refrescar } = useDatos();
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +164,7 @@ export function PagarModal({ tarjeta, onCerrar }: { tarjeta: Tarjeta | null; onC
 }
 
 // ---------- crear o editar una tarjeta ----------
-export function TarjetaModal({ visible, tarjeta, onCerrar }: { visible: boolean; tarjeta: Tarjeta | null; onCerrar: () => void }) {
+export function TarjetaModal({ visible, tarjeta, tipoInicial, onCerrar }: { visible: boolean; tarjeta: Tarjeta | null; tipoInicial?: TipoCuenta; onCerrar: () => void }) {
   const { tarjetas, perfil } = useDatos();
   const editando = !!tarjeta;
   const [nombre, setNombre] = useState('');
@@ -183,7 +183,7 @@ export function TarjetaModal({ visible, tarjeta, onCerrar }: { visible: boolean;
     if (!visible) return;
     setError(null);
     setNombre(tarjeta?.nombre ?? '');
-    setTipo(tarjeta?.tipo_pago ?? 'credito');
+    setTipo(tarjeta?.tipo_pago ?? tipoInicial ?? 'credito');
     setSaldo(tarjeta ? String(tarjeta.saldo) : '');
     setLimite(tarjeta?.limite_credito != null ? String(tarjeta.limite_credito) : '');
     setCorte(tarjeta?.dia_corte ? String(tarjeta.dia_corte) : '');
@@ -234,7 +234,7 @@ export function TarjetaModal({ visible, tarjeta, onCerrar }: { visible: boolean;
             onCambio={(id) => setCuentaPago(id === cuentaPago ? null : id)}
             opciones={mias.map((t) => ({ id: t.id, etiqueta: t.nombre }))}
           />
-          <Campo etiqueta="Deuda que ya traías (opcional)" placeholder="0.00" keyboardType="decimal-pad" value={deuda} onChangeText={setDeuda} ayuda="Lo que ya debías de esta tarjeta ANTES de registrar sus gastos en la app. Cuenta en lo que falta por pagar." />
+          <Campo etiqueta="Deuda que ya traías, sin MSI (opcional)" placeholder="0.00" keyboardType="decimal-pad" value={deuda} onChangeText={setDeuda} ayuda="Lo que ya debías ANTES de usar la app, sin contar MSI. Los MSI se agregan en Pagos a plazos" />
         </>
       ) : !editando ? (
         <Campo etiqueta="Dinero que tiene ahora" placeholder="0.00" keyboardType="decimal-pad" value={saldo} onChangeText={setSaldo} />
